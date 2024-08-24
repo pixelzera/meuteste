@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  zabbix-db:
+    image: postgres:13
+    container_name: zabbix-db
+    environment:
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix_pass
+      POSTGRES_DB: zabbix
+    volumes:
+      - zabbix-db-data:/var/lib/postgresql/data
+    networks:
+      - zabbix-net
+    privileged: true  # Adicionado modo privileged
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:latest
+    container_name: zabbix-server
+    environment:
+      DB_SERVER_HOST: zabbix-db
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix_pass
+      ZBX_JAVA_GATEWAY: ""
+      ZBX_SERVER_NAME: Jefferson Mendes  # Adicionada a variável ZBX_SERVER_NAME
+    depends_on:
+      - zabbix-db
+    volumes:
+      - zabbix-server-data:/var/lib/zabbix
+    networks:
+      - zabbix-net
+    privileged: true  # Adicionado modo privileged
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:latest
+    container_name: zabbix-web
+    environment:
+      ZBX_SERVER_HOST: zabbix-server
+      DB_SERVER_HOST: zabbix-db
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix_pass
+      PHP_TZ: Europe/Lisbon
+      ZBX_SERVER_NAME: Jefferson Mendes  # Adicionada a variável ZBX_SERVER_NAME
+    ports:
+      - "80:8080"
+    depends_on:
+      - zabbix-server
+    networks:
+      - zabbix-net
+    privileged: true  # Adicionado modo privileged
+
+  zabbix-agent:
+    image: zabbix/zabbix-agent:latest
+    container_name: zabbix-agent
+    environment:
+      ZBX_SERVER_HOST: zabbix-server
+    networks:
+      - zabbix-net
+    privileged: true  # Adicionado modo privileged
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin  # Defina uma senha de admin aqui
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - zabbix-net
+    privileged: true  # Adicionado modo privileged
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    ports:
+      - "9000:9000"
+    volumes:
+      - portainer-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - zabbix-net
+    privileged: true  # Adicionado modo privileged
+
+volumes:
+  zabbix-db-data:
+    driver: local
+  zabbix-server-data:
+    driver: local
+  grafana-data:
+    driver: local
+  portainer-data:
+    driver: local
+
+networks:
+  zabbix-net:
+    driver: bridge
